@@ -1,8 +1,5 @@
 #include <Wire.h>
 #include "BME.h"
-
-#define SCREEN_WIDTH  128 // OLED display width, in pixels. Has to be defined before define Display.h.
-#define SCREEN_HEIGHT  64 // OLED display height, in pixels. Has to be defined before define Display.h.
 #include "Display.h"
 
 volatile bool btn_setup_pressed = false;
@@ -24,19 +21,19 @@ void PrintValuesDisplay(void)
   display.setCursor(0, 0);             // Start at top-left corner
   display.print(F("Temp: "));
   display.print(Temperature);
-  display.println(F(" °C"));
-
+  display.println(F(" C"));
+  display.println(F(" "));
   display.print(F("Pressure: "));
   display.print(Pressure);
   display.println(F(" hPa"));
-
+  display.println(F(" "));
   display.print(F("Humidity: "));
   display.print(Humidity);
   display.println(F(" %"));
-
+  display.println(F(" "));
   display.print(F("Dew Point: "));
   display.print(DewPoint);
-  display.println(F(" °C"));
+  display.println(F(" C"));
   
   display.display();
 
@@ -81,6 +78,11 @@ void InitIOs(void)
 
   delay(500);
   
+  AllStatusLEDsOff();
+}
+
+void AllStatusLEDsOff(void)
+{
   digitalWrite(LED_HIGH_CRIT, LOW);
   digitalWrite(LED_HIGH_WARN, LOW);
   digitalWrite(LED_NORMAL,    LOW);
@@ -104,14 +106,14 @@ void SetStatusLEDs(void)
     digitalWrite(LED_HIGH_WARN, LOW);
     digitalWrite(LED_NORMAL,    LOW);
     digitalWrite(LED_LOW_CRIT,  LOW);
-  } else if (DewPoint * 0.9 > Temperature | Humidity > 60)
+  } else if (((DewPoint * 0.9) > Temperature) | (Humidity > 60))
   {
     digitalWrite(LED_HIGH_WARN, HIGH);
     digitalWrite(LED_HIGH_CRIT, LOW);
     digitalWrite(LED_NORMAL,    LOW);
     digitalWrite(LED_LOW_WARN,  LOW);
     digitalWrite(LED_LOW_CRIT,  LOW);
-  } else if (DewPoint * 0.95 > Temperature | Humidity > 70)
+  } else if (((DewPoint * 0.95) > Temperature) | (Humidity > 70))
   {
     digitalWrite(LED_HIGH_CRIT, HIGH);
     digitalWrite(LED_HIGH_WARN, LOW);
@@ -128,38 +130,73 @@ void SetStatusLEDs(void)
   }
 }
 
+void Display_Error(void)
+{
+  
+  AllStatusLEDsOff();
+  
+  while(true)
+  {
+    digitalWrite(LED_HIGH_CRIT, !digitalRead(LED_HIGH_CRIT));
+    digitalWrite(LED_LOW_CRIT,  !digitalRead(LED_LOW_CRIT)); 
+    delay(500); 
+  }
+}
+
+void BME_Sensor_Error(void)
+{
+  
+  AllStatusLEDsOff();
+  
+  while(true)
+  {
+    digitalWrite(LED_HIGH_WARN, !digitalRead(LED_HIGH_CRIT));
+    digitalWrite(LED_LOW_WARN,  !digitalRead(LED_LOW_CRIT)); 
+    delay(500); 
+  }
+}
+
+bool check_i2c_devices(byte i2c_address)
+{
+  byte wire_error_no;
+  Wire.beginTransmission(i2c_address);
+  wire_error_no = Wire.endTransmission();
+  
+  delay(10);
+  
+  if (wire_error_no != 0)
+  {
+    return false;
+  }
+    
+  return true;
+}
+
 void setup() 
 {
-  bool state = true;
-  
-  Serial.begin(9600);
-  
-  InitIOs();
- 
-  if (!InitDisplay())
+  Wire.begin();
+
+  if (!check_i2c_devices(I2C_ADDR_OLED_DISPLAY))
   {
-    Serial.println(F("SSD1306 allocation failed"));
-    Serial.flush();
-    delay(5);
-    state = false;
+    Display_Error();
   }
   
+  if (!check_i2c_devices(I2C_ADDR_BME280_SENSOR))
+  {
+    BME_Sensor_Error(); 
+  }
+
   if (!InitBMESensor())
   {
-    Serial.println("BME280 sensor was not found");
-    Serial.flush();
-    delay(5);
-    state = false;    
+    BME_Sensor_Error(); 
   }
-
-  // if something failes -> stop processing
-  if (!state)
-  {
-    while(true) { delay(10); }
-  }
-
+  
+  InitDisplay();
+  InitIOs();
+  
   delay(2000);
   getSensorValues();
+  DewPoint = CalculateDewPointFast(Temperature, Humidity);
   PrintValuesDisplay();
 
   DisplayTimeout = 0;
@@ -205,6 +242,7 @@ void loop()
   {
     display.clearDisplay();
     display.display();
+    AllStatusLEDsOff();
     DisplayTimeout = 0;
   }
 
