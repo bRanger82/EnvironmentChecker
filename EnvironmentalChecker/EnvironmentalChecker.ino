@@ -18,25 +18,7 @@ int SensorTimeout  = 0;   // counter increased each run in loop -> when threshol
 
 void PrintValuesDisplay(void)
 {
-  display.setCursor(0, 0);             // Start at top-left corner
-  display.print(F("Temp: "));
-  display.print(Temperature);
-  display.println(F(" C"));
-  display.println(F(" "));
-  display.print(F("Pressure: "));
-  display.print(Pressure);
-  display.println(F(" hPa"));
-  display.println(F(" "));
-  display.print(F("Humidity: "));
-  display.print(Humidity);
-  display.println(F(" %"));
-  display.println(F(" "));
-  display.print(F("Dew Point: "));
-  display.print(DewPoint);
-  display.println(F(" C"));
-  
-  display.display();
-
+  PrintDataOnDisplay(Temperature, Pressure, Humidity, DewPoint);
   DisplayTimeout = 0;
 }
 
@@ -203,27 +185,6 @@ void setup()
   SensorTimeout = 0;
 }
 
-// This function is using a fast calculation of the dew point -> less accurate than the slow calculation.
-float CalculateDewPointFast(float temperature, float humidity)
-{
- float a = 17.271;
- float b = 237.7;
- float temp = (a * temperature) / (b + temperature) + log(humidity*0.01);
- float Td = (b * temp) / (a - temp);
- return Td;
-}
-
-// This function is using a slow calculation of the dew point -> much more accurate but also a very slow calculation.
-float CalculateDewPointSlow(float temperature, float humidity) 
-{
-  float a = 7.5 ;    //für T >= 0
-  float b = 237.3 ;  //für T >= 0
-  float SDD = 6.1078 * pow(10,((a*temperature)/(b+temperature))); // Saturation vapor pressure [hPa]
-  float DD = (humidity / 100) * SDD; // Vapor pressure [hPa]
-  float v = log10((DD / 6.1078));    // Attention: use log10!
-  return (b * v)/(a - v);            // Calculate dew point
-}
- 
 void loop() 
 {
   if (btn_display_pressed)
