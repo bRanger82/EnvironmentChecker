@@ -3,7 +3,7 @@
 #define DISPLAY_HEADER
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
-#include <Fonts/DejaVu_Serif_9.h>
+#include "DejaVu_Serif_9.h"
 #define I2C_ADDR_OLED_DISPLAY 0x3C
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
