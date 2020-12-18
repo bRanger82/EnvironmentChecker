@@ -30,6 +30,10 @@ bool InitDisplay(void)
     
     display.setTextColor(SSD1306_WHITE); // Draw white text
     display.cp437(true);                 // Use full 256 char 'Code Page 437' font
+    display.setCursor(3, 25);             // Start at top-left corner
+    display.println(F("Initialization "));
+    display.setCursor(3, 40); 
+    display.println(F("Please wait ..."));
     display.display();    
   }
 
@@ -38,7 +42,8 @@ bool InitDisplay(void)
 
 void PrintDataOnDisplay(float Temperature, float Pressure, float Humidity, float DewPoint)
 {
-  display.setCursor(0, 15);             // Start at top-left corner
+  display.clearDisplay(); 
+  display.setCursor(0, 19);             // Start at top-left corner
   display.print(F("Temp.: "));
   display.print(Temperature);
   display.println(F(" °C"));

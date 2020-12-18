@@ -1,4 +1,6 @@
 #include <Wire.h>
+#include <avr/sleep.h>
+#include <avr/power.h>
 #include "BME.h"
 #include "Display.h"
 
@@ -14,7 +16,6 @@ volatile bool btn_display_pressed = false;
 #define LED_LOW_CRIT   9
 
 int DisplayTimeout = 0;   // counter increased each run in loop -> when threshold is reached, the display is turned off
-int SensorTimeout  = 0;   // counter increased each run in loop -> when threshold is reached, the BME280 sensor values are read
 
 void PrintValuesDisplay(void)
 {
@@ -31,11 +32,15 @@ void getSensorValues(void)
 
 void BtnDisplayPressed()
 {
+  sleep_disable();
+  power_all_enable();
   btn_display_pressed = true;
 }
 
 void BtnSetupPressed()
 {
+  sleep_disable();
+  power_all_enable();
   btn_setup_pressed = true;
 }
 
@@ -60,16 +65,26 @@ void InitIOs(void)
 
   delay(500);
   
-  AllStatusLEDsOff();
+  AllStatusLEDs(false);
 }
 
-void AllStatusLEDsOff(void)
+void AllStatusLEDs(bool On)
 {
-  digitalWrite(LED_HIGH_CRIT, LOW);
-  digitalWrite(LED_HIGH_WARN, LOW);
-  digitalWrite(LED_NORMAL,    LOW);
-  digitalWrite(LED_LOW_WARN,  LOW);
-  digitalWrite(LED_LOW_CRIT,  LOW);
+  if (On)
+  {
+    digitalWrite(LED_HIGH_CRIT, HIGH);
+    digitalWrite(LED_HIGH_WARN, HIGH);
+    digitalWrite(LED_NORMAL,    HIGH);
+    digitalWrite(LED_LOW_WARN,  HIGH);
+    digitalWrite(LED_LOW_CRIT,  HIGH);    
+  } else
+  {
+    digitalWrite(LED_HIGH_CRIT, LOW);
+    digitalWrite(LED_HIGH_WARN, LOW);
+    digitalWrite(LED_NORMAL,    LOW);
+    digitalWrite(LED_LOW_WARN,  LOW);
+    digitalWrite(LED_LOW_CRIT,  LOW);    
+  }
 }
 
 void SetStatusLEDs(void)
@@ -115,7 +130,7 @@ void SetStatusLEDs(void)
 void Display_Error(void)
 {
   
-  AllStatusLEDsOff();
+  AllStatusLEDs(false);
   
   while(true)
   {
@@ -128,7 +143,7 @@ void Display_Error(void)
 void BME_Sensor_Error(void)
 {
   
-  AllStatusLEDsOff();
+  AllStatusLEDs(false);
   
   while(true)
   {
@@ -154,6 +169,28 @@ bool check_i2c_devices(byte i2c_address)
   return true;
 }
 
+void SetupSleepMode(void)
+{
+  // disable ADC
+  ADCSRA &= ~(1<<ADEN); //Disable ADC
+  ACSR = (1<<ACD); //Disable the analog comparator
+  DIDR0 = 0x3F; //Disable digital input buffers on all ADC0-ADC5 pins
+  DIDR1 = (1<<AIN1D)|(1<<AIN0D); //Disable digital input buffer on AIN1/0
+  power_adc_disable();
+  power_spi_disable();
+  
+  set_sleep_mode (SLEEP_MODE_PWR_SAVE);
+  sei();           // interrupts allowed now, next instruction WILL be executed
+}
+
+void EnterSleepMode(void)
+{
+  set_sleep_mode(SLEEP_MODE_PWR_SAVE); // choose power down mode
+  sleep_enable();
+  // Now enter sleep mode.
+  sleep_mode();  
+}
+
 void setup() 
 {
   Wire.begin();
@@ -176,19 +213,19 @@ void setup()
   InitDisplay();
   InitIOs();
   
-  delay(2000);
+  delay(500);
+  
   getSensorValues();
   DewPoint = CalculateDewPointFast(Temperature, Humidity);
   PrintValuesDisplay();
-
-  DisplayTimeout = 0;
-  SensorTimeout = 0;
 }
 
 void loop() 
 {
   if (btn_display_pressed)
   {
+    getSensorValues();
+    DewPoint = CalculateDewPointFast(Temperature, Humidity);
     PrintValuesDisplay();
     SetStatusLEDs();
     btn_display_pressed = false;
@@ -196,6 +233,11 @@ void loop()
   {
     // nothing defined yet
     btn_setup_pressed = false;
+    // do work
+    AllStatusLEDs(true);
+    delay(250);
+    AllStatusLEDs(false);
+    EnterSleepMode();
   }
 
   // 1000 x loop cycles (10ms delay in loop() => 10 sec display timeout)
@@ -203,16 +245,9 @@ void loop()
   {
     display.clearDisplay();
     display.display();
-    AllStatusLEDsOff();
+    AllStatusLEDs(false);
     DisplayTimeout = 0;
-  }
-
-  // Trigger a sensor read every 1000 loop cycles
-  if (SensorTimeout++ > 1000)
-  {
-    getSensorValues();
-    DewPoint = CalculateDewPointFast(Temperature, Humidity);
-    SensorTimeout = 0;
+    EnterSleepMode();
   }
   
   delay(10);
