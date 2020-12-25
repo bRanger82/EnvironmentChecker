@@ -25,9 +25,24 @@ void PrintValuesDisplay(void)
 
 void getSensorValues(void)
 {
-  Temperature = bme.readTemperature();
-  Pressure = bme.readPressure() / 100.0F; // hPa
-  Humidity = bme.readHumidity();
+  bool reading_ok = true;
+  
+#ifdef BME_FORCED_MODE
+  reading_ok = bme.takeForcedMeasurement();
+#endif
+
+  if (reading_ok)
+  {
+    Temperature = bme.readTemperature();
+    Pressure = bme.readPressure() / 100.0F; // hPa
+    Humidity = bme.readHumidity();    
+  } else
+  {
+    Temperature = 0.0f;
+    Pressure = 0.0f;
+    Humidity = 0.0f;
+    BME_Sensor_Error();
+  }
 }
 
 void BtnDisplayPressed()

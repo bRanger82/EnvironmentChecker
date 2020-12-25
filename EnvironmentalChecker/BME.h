@@ -6,6 +6,8 @@
 
 #define I2C_ADDR_BME280_SENSOR 0x76
 
+#define BME_FORCED_MODE true
+
 float Temperature = 0;    // BME280 sensor value []
 float Pressure    = 0;    // BME280 sensor value [hPa]
 float Humidity    = 0;    // BME280 sensor value [rel %]
@@ -17,6 +19,14 @@ bool InitBMESensor(void)
 {
   if (bme.begin(I2C_ADDR_BME280_SENSOR))
   {
+#ifdef BME_FORCED_MODE
+    bme.setSampling(Adafruit_BME280::MODE_FORCED,
+                    Adafruit_BME280::SAMPLING_X8, // temperature
+                    Adafruit_BME280::SAMPLING_X8, // pressure
+                    Adafruit_BME280::SAMPLING_X8, // humidity
+                    Adafruit_BME280::FILTER_OFF,
+                    Adafruit_BME280::STANDBY_MS_1000);
+#endif
     return true;
   }
   return false;
