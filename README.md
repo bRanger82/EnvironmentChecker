@@ -31,5 +31,13 @@ Reason for the OLED display: the 0,96inch variant was used for this project, as 
 What the Display button does: it shows the BME280 sensor values for a short period of time on the OLED display. After a timeout exceeds, the display is turned off again. The main reason for that is the power consumption. While the display shows the data and the status LED lights up, the power consumption reaches up to 20 mA. 
 When the display and status LED are turned off after a defined period of time, the power consumption will be lowered to about 3 mA. 
 
+# Planned improvements
+
+Following improvements are planned for this project:
+- adding functionality for the "Setup" button
+- reduce power consumption by entering sleep/power-save mode (Sensor, Display and Processor)
+- Serial communication support (for bug fixing)
+- Support for writing settings/data to EEPROM
+
 # Disclaimer 
 The entire project (the code, the schematic/PCB design and all related parts) is just for educational use. Using the code and/or schematic/PCB on your own risk. 
