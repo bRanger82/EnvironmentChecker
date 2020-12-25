@@ -239,6 +239,7 @@ void loop()
 {
   if (btn_display_pressed)
   {
+    display.ssd1306_command(SSD1306_DISPLAYON);
     getSensorValues();
     DewPoint = CalculateDewPointFast(Temperature, Humidity);
     PrintValuesDisplay();
@@ -258,9 +259,11 @@ void loop()
   // 1000 x loop cycles (10ms delay in loop() => 10 sec display timeout)
   if (DisplayTimeout++ > 1000) 
   {
+    AllStatusLEDs(false);
     display.clearDisplay();
     display.display();
-    AllStatusLEDs(false);
+    delay(20);
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
     DisplayTimeout = 0;
     EnterSleepMode();
   }
