@@ -37,7 +37,7 @@ float CalculateDewPointFast(float temperature, float humidity)
 {
  float a = 17.271;
  float b = 237.7;
- float temp = (a * temperature) / (b + temperature) + log(humidity*0.01);
+ float temp = (a * temperature) / (b + temperature) + log(humidity * 0.01);
  float Td = (b * temp) / (a - temp);
  return Td;
 }
@@ -50,7 +50,7 @@ float CalculateDewPointSlow(float temperature, float humidity)
   float SDD = 6.1078 * pow(10,((a*temperature)/(b+temperature))); // Saturation vapor pressure [hPa]
   float DD = (humidity / 100) * SDD; // Vapor pressure [hPa]
   float v = log10((DD / 6.1078));    // Attention: use log10!
-  return (b * v)/(a - v);            // Calculate dew point
+  return (b * v) / (a - v);            // Calculate dew point
 }
 
 #endif

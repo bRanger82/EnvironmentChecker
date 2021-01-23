@@ -17,9 +17,12 @@ volatile bool btn_display_pressed = false;
 
 int DisplayTimeout = 0;   // counter increased each run in loop -> when threshold is reached, the display is turned off
 
-void PrintValuesDisplay(void)
+bool display_mode = true;
+
+void PrintValuesDisplay(bool mode)
 {
-  PrintDataOnDisplay(Temperature, Pressure, Humidity, DewPoint);
+  display.ssd1306_command(SSD1306_DISPLAYON);
+  PrintDataOnDisplay(Temperature, Pressure, Humidity, DewPoint, mode);
   DisplayTimeout = 0;
 }
 
@@ -102,43 +105,74 @@ void AllStatusLEDs(bool On)
   }
 }
 
-void SetStatusLEDs(void)
+typedef enum state_e {eLOW_CRITICAL = 1, eLOW_WARNING = 2, eNORMAL = 3, eHIGH_WARNING = 4, eHIGH_CRITICAL = 5 } state_t;
+
+void SetStatusLEDs(byte state)
 {
-  if (Humidity < 30)
+  switch(state)
   {
-    digitalWrite(LED_LOW_CRIT,  HIGH);
-    digitalWrite(LED_HIGH_CRIT, LOW);
-    digitalWrite(LED_HIGH_WARN, LOW);
-    digitalWrite(LED_NORMAL,    LOW);
-    digitalWrite(LED_LOW_WARN,  LOW);
-  } else if (Humidity < 40)
+    case eLOW_CRITICAL:
+      digitalWrite(LED_HIGH_CRIT, LOW);
+      digitalWrite(LED_HIGH_WARN, LOW);
+      digitalWrite(LED_NORMAL,    LOW);
+      digitalWrite(LED_LOW_WARN,  LOW);
+      digitalWrite(LED_LOW_CRIT,  HIGH); 
+      break;
+    case eLOW_WARNING:
+      digitalWrite(LED_HIGH_CRIT, LOW);
+      digitalWrite(LED_HIGH_WARN, LOW);
+      digitalWrite(LED_NORMAL,    LOW);
+      digitalWrite(LED_LOW_WARN,  HIGH);
+      digitalWrite(LED_LOW_CRIT,  LOW); 
+      break;
+    case eNORMAL:
+      digitalWrite(LED_HIGH_CRIT, LOW);
+      digitalWrite(LED_HIGH_WARN, LOW);
+      digitalWrite(LED_NORMAL,    HIGH);
+      digitalWrite(LED_LOW_WARN,  LOW);
+      digitalWrite(LED_LOW_CRIT,  LOW); 
+      break;  
+    case eHIGH_WARNING:
+      digitalWrite(LED_HIGH_CRIT, LOW);
+      digitalWrite(LED_HIGH_WARN, HIGH);
+      digitalWrite(LED_NORMAL,    LOW);
+      digitalWrite(LED_LOW_WARN,  LOW);
+      digitalWrite(LED_LOW_CRIT,  LOW);      
+      break; 
+    case eHIGH_CRITICAL:
+      digitalWrite(LED_HIGH_CRIT, HIGH);
+      digitalWrite(LED_HIGH_WARN, LOW);
+      digitalWrite(LED_NORMAL,    LOW);
+      digitalWrite(LED_LOW_WARN,  LOW);
+      digitalWrite(LED_LOW_CRIT,  LOW);
+      break;      
+    default:
+      digitalWrite(LED_LOW_CRIT,  LOW);
+      digitalWrite(LED_HIGH_WARN, LOW);
+      digitalWrite(LED_NORMAL,    LOW);
+      digitalWrite(LED_LOW_WARN,  LOW);
+      digitalWrite(LED_HIGH_CRIT, LOW);
+      break; 
+  }
+}
+
+void UpdateSetStatusLEDs(void)
+{
+  if ((Humidity > 70.0f) || ((DewPoint * 0.95) > Temperature))
   {
-    digitalWrite(LED_LOW_WARN,  HIGH);
-    digitalWrite(LED_HIGH_CRIT, LOW);
-    digitalWrite(LED_HIGH_WARN, LOW);
-    digitalWrite(LED_NORMAL,    LOW);
-    digitalWrite(LED_LOW_CRIT,  LOW);
-  } else if (((DewPoint * 0.9) > Temperature) | (Humidity > 60))
+    SetStatusLEDs((byte)eHIGH_CRITICAL);
+  } else if ((Humidity > 60.0f)  || ((DewPoint * 0.9) > Temperature))
   {
-    digitalWrite(LED_HIGH_WARN, HIGH);
-    digitalWrite(LED_HIGH_CRIT, LOW);
-    digitalWrite(LED_NORMAL,    LOW);
-    digitalWrite(LED_LOW_WARN,  LOW);
-    digitalWrite(LED_LOW_CRIT,  LOW);
-  } else if (((DewPoint * 0.95) > Temperature) | (Humidity > 70))
+    SetStatusLEDs((byte)eHIGH_WARNING);
+  } else if (Humidity < 30.0f)
   {
-    digitalWrite(LED_HIGH_CRIT, HIGH);
-    digitalWrite(LED_HIGH_WARN, LOW);
-    digitalWrite(LED_NORMAL,    LOW);
-    digitalWrite(LED_LOW_WARN,  LOW);
-    digitalWrite(LED_LOW_CRIT,  LOW);
+    SetStatusLEDs((byte)eLOW_CRITICAL);
+  } else if (Humidity < 40.0f)
+  {
+    SetStatusLEDs((byte)eLOW_WARNING);
   } else
   {
-    digitalWrite(LED_NORMAL,    HIGH);
-    digitalWrite(LED_HIGH_CRIT, LOW);
-    digitalWrite(LED_HIGH_WARN, LOW);
-    digitalWrite(LED_LOW_WARN,  LOW);
-    digitalWrite(LED_LOW_CRIT,  LOW);
+    SetStatusLEDs((byte)eNORMAL);
   }
 }
 
@@ -188,9 +222,9 @@ void SetupSleepMode(void)
 {
   // disable ADC
   ADCSRA &= ~(1<<ADEN); //Disable ADC
-  ACSR = (1<<ACD); //Disable the analog comparator
+  ACSR = (1 << ACD); //Disable the analog comparator
   DIDR0 = 0x3F; //Disable digital input buffers on all ADC0-ADC5 pins
-  DIDR1 = (1<<AIN1D)|(1<<AIN0D); //Disable digital input buffer on AIN1/0
+  DIDR1 = (1 << AIN1D)|(1 << AIN0D); //Disable digital input buffer on AIN1/0
   power_adc_disable();
   power_spi_disable();
   
@@ -200,14 +234,19 @@ void SetupSleepMode(void)
 
 void EnterSleepMode(void)
 {
+  display.clearDisplay();
+  display.display();
+  delay(20);
+  display.ssd1306_command(SSD1306_DISPLAYOFF);
   set_sleep_mode(SLEEP_MODE_PWR_SAVE); // choose power down mode
   sleep_enable();
-  // Now enter sleep mode.
-  sleep_mode();  
+  sleep_mode();    // Now enter sleep mode.
 }
 
 void setup() 
 {
+  Serial.begin(19200);
+  Serial.println("Hello world");
   Wire.begin();
 
   if (!check_i2c_devices(I2C_ADDR_OLED_DISPLAY))
@@ -227,32 +266,66 @@ void setup()
   
   InitDisplay();
   InitIOs();
-  
-  delay(500);
-  
+  delay(50);
+  AllStatusLEDs(false);
   getSensorValues();
   DewPoint = CalculateDewPointFast(Temperature, Humidity);
-  PrintValuesDisplay();
+  PrintValuesDisplay(true);
+  UpdateSetStatusLEDs();
 }
 
 void loop() 
 {
+  if (Serial.available() > 0)
+  {
+    int wert_ser = Serial.parseInt();
+    switch(wert_ser)
+    { 
+      case 0:
+        break;
+      case 1:
+        SetStatusLEDs((byte)wert_ser);
+        break;
+      case 2:
+        SetStatusLEDs((byte)wert_ser);
+        break;
+      case 3:
+        SetStatusLEDs((byte)wert_ser);
+        break;
+      case 4:
+        SetStatusLEDs((byte)wert_ser);
+        break;
+      case 5:
+        SetStatusLEDs((byte)wert_ser);
+        break;
+      case 6:
+        AllStatusLEDs(true);
+        break;
+      case 7:
+        AllStatusLEDs(false);
+        break;
+      default:
+        break;
+    }
+    if (wert_ser > 0)
+    {
+      Serial.print("Set ");
+      Serial.println((byte)wert_ser);      
+    }
+    Serial.flush();
+  }
   if (btn_display_pressed)
   {
-    display.ssd1306_command(SSD1306_DISPLAYON);
     getSensorValues();
     DewPoint = CalculateDewPointFast(Temperature, Humidity);
-    PrintValuesDisplay();
-    SetStatusLEDs();
+    PrintValuesDisplay(display_mode);
+    UpdateSetStatusLEDs();
     btn_display_pressed = false;
   } else if (btn_setup_pressed)
   {
     // nothing defined yet
+    display_mode = !display_mode;
     btn_setup_pressed = false;
-    // do work
-    AllStatusLEDs(true);
-    delay(250);
-    AllStatusLEDs(false);
     EnterSleepMode();
   }
 
@@ -260,10 +333,6 @@ void loop()
   if (DisplayTimeout++ > 1000) 
   {
     AllStatusLEDs(false);
-    display.clearDisplay();
-    display.display();
-    delay(20);
-    display.ssd1306_command(SSD1306_DISPLAYOFF);
     DisplayTimeout = 0;
     EnterSleepMode();
   }

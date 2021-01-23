@@ -3,7 +3,7 @@
 #define DISPLAY_HEADER
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
-#include "DejaVu_Serif_9.h"
+#include "DejaVu_Serif_14.h"
 #define I2C_ADDR_OLED_DISPLAY 0x3C
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
@@ -25,38 +25,52 @@ bool InitDisplay(void)
   if (state)
   {
     display.clearDisplay();  
-    display.setFont(&DejaVu_Serif_9);
+    display.setFont(&DejaVu_Serif_14);
     display.setTextSize(1);              // Normal 1:1 pixel scale
     
     display.setTextColor(SSD1306_WHITE); // Draw white text
     display.cp437(true);                 // Use full 256 char 'Code Page 437' font
-    display.setCursor(3, 25);             // Start at top-left corner
-    display.println(F("Initialization "));
-    display.setCursor(3, 40); 
-    display.println(F("Please wait ..."));
+    display.drawRect(2, 2, 124, 60, WHITE);
+    display.setCursor(8, 25);            // Start at top-left corner
+    display.println(F("Startup ... "));
+    display.setCursor(8, 50); 
+    display.println(F("Please wait!"));
     display.display();    
   }
 
   return state;
 }
 
-void PrintDataOnDisplay(float Temperature, float Pressure, float Humidity, float DewPoint)
+void PrintDataOnDisplay(float Temperature, float Pressure, float Humidity, float DewPoint, bool TempPart)
 {
   display.clearDisplay(); 
-  display.setCursor(0, 19);             // Start at top-left corner
-  display.print(F("Temp.: "));
-  display.print(Temperature);
-  display.println(F(" °C"));
-  display.print(F("Pressure: "));
-  display.print(Pressure);
-  display.println(F(" hPa"));
-  display.print(F("Humidity: "));
-  display.print(Humidity);
-  display.println(F(" %"));
-  display.print(F("Dew Point: "));
-  display.print(DewPoint);
-  display.println(F(" °C"));
-  
+  display.drawRect(2, 2, 124, 60, WHITE);
+  if (TempPart)
+  {
+    display.setCursor(8, 25);
+    display.print(F("T: "));
+    display.print(Temperature);
+    display.print(F(" *"));
+    display.println(F("C"));    
+
+    display.setCursor(8, 51);
+    display.print(F("H: "));
+    display.print(Humidity);
+    display.println(F(" %"));
+  } else
+  {
+    display.setCursor(8, 25);
+    display.print(F("P: "));
+    display.print(Pressure);
+    display.println(F(" hPa"));
+    
+    display.setCursor(8, 51);
+    display.print(F("DP: "));
+    display.print(DewPoint);
+    display.print(F(" *"));
+    display.println(F("C")); 
+  }
+
   display.display();
 }
 #endif
