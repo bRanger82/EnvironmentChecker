@@ -246,35 +246,52 @@ void EnterSleepMode(void)
 void setup() 
 {
   Serial.begin(19200);
-  Serial.println("Hello world");
+  Serial.println(F("Startup environment checker ..."));
+  
   Wire.begin();
 
   if (!check_i2c_devices(I2C_ADDR_OLED_DISPLAY))
   {
+    Serial.println(F("I2C I2C_ADDR_OLED_DISPLAY failed!"));
     Display_Error();
   }
   
   if (!check_i2c_devices(I2C_ADDR_BME280_SENSOR))
   {
+    Serial.println(F("I2C I2C_ADDR_BME280_SENSOR failed!"));
     BME_Sensor_Error(); 
   }
 
   if (!InitBMESensor())
   {
+    Serial.println(F("InitBMESensor failed!"));
     BME_Sensor_Error(); 
   }
-  
+
+  Serial.print(F("Init display ... "));
   InitDisplay();
+  Serial.println(F("done"));
+  
+  Serial.print(F("Init I/Os ... "));
   InitIOs();
   delay(50);
   AllStatusLEDs(false);
+  Serial.println(F("done"));
+  
+  Serial.print(F("Reading values ... "));
   getSensorValues();
   DewPoint = CalculateDewPointFast(Temperature, Humidity);
+  Serial.println(F("done"));
+
+  Serial.print(F("Display values ... "));
   PrintValuesDisplay(true);
   UpdateSetStatusLEDs();
+  Serial.println(F("done"));
+
+  Serial.println(F("Startup done!"));
 }
 
-void loop() 
+void ProcessSerialData(void)
 {
   if (Serial.available() > 0)
   {
@@ -304,16 +321,33 @@ void loop()
       case 7:
         AllStatusLEDs(false);
         break;
+      case 8:
+        getSensorValues();
+        Serial.print(F("Temperature [°C]: "));
+        Serial.println(Temperature);
+        Serial.print(F("Pressure [hPa]: "));
+        Serial.println(Pressure);
+        Serial.print(F("Humidity [%]: "));
+        Serial.println(Humidity);
+        Serial.print(F("DewPoint [°C]: "));
+        Serial.println(DewPoint);
+        break;
       default:
         break;
     }
-    if (wert_ser > 0)
+    if (wert_ser > 0 && wert_ser < 6)
     {
       Serial.print("Set ");
       Serial.println((byte)wert_ser);      
     }
     Serial.flush();
-  }
+  }  
+}
+
+void loop() 
+{
+  ProcessSerialData();
+  
   if (btn_display_pressed)
   {
     getSensorValues();
