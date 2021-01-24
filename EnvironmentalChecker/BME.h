@@ -32,6 +32,27 @@ bool InitBMESensor(void)
   return false;
 }
 
+bool GetSensorReading(float * temperature, float * humidity, float * pressure)
+{
+#ifdef BME_FORCED_MODE
+  bool reading_ok = bme.takeForcedMeasurement();
+#endif
+
+  if (reading_ok)
+  {
+    *temperature = bme.readTemperature();
+    *pressure = bme.readPressure() / 100.0f; // hPa
+    *humidity = bme.readHumidity();    
+  } else
+  {
+    *temperature = 0.0f;
+    *pressure = 0.0f;
+    *humidity = 0.0f;
+    return false;
+  }
+  return true;
+}
+
 // This function is using a fast calculation of the dew point -> less accurate than the slow calculation.
 float CalculateDewPointFast(float temperature, float humidity)
 {

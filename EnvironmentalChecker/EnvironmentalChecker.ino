@@ -28,22 +28,8 @@ void PrintValuesDisplay(bool mode)
 
 void getSensorValues(void)
 {
-  bool reading_ok = true;
-  
-#ifdef BME_FORCED_MODE
-  reading_ok = bme.takeForcedMeasurement();
-#endif
-
-  if (reading_ok)
+  if (!GetSensorReading(&Temperature, &Humidity, &Pressure))
   {
-    Temperature = bme.readTemperature();
-    Pressure = bme.readPressure() / 100.0F; // hPa
-    Humidity = bme.readHumidity();    
-  } else
-  {
-    Temperature = 0.0f;
-    Pressure = 0.0f;
-    Humidity = 0.0f;
     BME_Sensor_Error();
   }
 }
@@ -221,9 +207,9 @@ bool check_i2c_devices(byte i2c_address)
 void SetupSleepMode(void)
 {
   // disable ADC
-  ADCSRA &= ~(1<<ADEN); //Disable ADC
-  ACSR = (1 << ACD); //Disable the analog comparator
-  DIDR0 = 0x3F; //Disable digital input buffers on all ADC0-ADC5 pins
+  ADCSRA &= ~(1<<ADEN); // Disable ADC
+  ACSR = (1 << ACD);    // Disable the analog comparator
+  DIDR0 = 0x3F;         // Disable digital input buffers on all ADC0-ADC5 pins
   DIDR1 = (1 << AIN1D)|(1 << AIN0D); //Disable digital input buffer on AIN1/0
   power_adc_disable();
   power_spi_disable();
@@ -240,7 +226,7 @@ void EnterSleepMode(void)
   display.ssd1306_command(SSD1306_DISPLAYOFF);
   set_sleep_mode(SLEEP_MODE_PWR_SAVE); // choose power down mode
   sleep_enable();
-  sleep_mode();    // Now enter sleep mode.
+  sleep_mode();                        // Now enter sleep mode.
 }
 
 void setup() 
@@ -363,7 +349,7 @@ void loop()
     EnterSleepMode();
   }
 
-  // 1000 x loop cycles (10ms delay in loop() => 10 sec display timeout)
+  // 1000 x loop cycles (10ms delay in loop() => about 10 sec display timeout)
   if (DisplayTimeout++ > 1000) 
   {
     AllStatusLEDs(false);
